@@ -3,6 +3,7 @@ import { useChat } from "@ai-sdk/react"
 import { createGoogle } from "@ai-sdk/google"
 import { DirectChatTransport, Experimental_Agent as Agent, stepCountIs, type ChatTransport, type UIMessage } from "ai"
 import { ArrowUpIcon, AudioLinesIcon, HistoryIcon, KeyRoundIcon, SparklesIcon } from "lucide-react"
+import { useSearchParams } from "react-router-dom"
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { AssistantMessage } from "@/components/chat/assistant-message"
@@ -42,9 +43,17 @@ function newChatId() {
 export default function AskAIPage() {
   const [apiKey, setApiKey] = useState<string | null>(() => getGeminiKey())
   const [chats, setChats] = useState<ChatSummary[]>([])
-  const [activeId, setActiveId] = useState(newChatId)
-  const [loaded, setLoaded] = useState<StoredChat | null>(null)
+  // The open chat's id lives in the URL (?id=...), so a chat can be reopened or shared by link.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeId = searchParams.get("id")
+  // The chat for activeId, once read from IndexedDB. Tagged with its id so a stale read is never shown.
+  const [loaded, setLoaded] = useState<{ id: string; chat: StoredChat | null } | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
+
+  // A visit without an id gets a new chat id in place, so every chat has one in the URL.
+  useEffect(() => {
+    if (!activeId) setSearchParams({ id: newChatId() }, { replace: true })
+  }, [activeId, setSearchParams])
 
   async function refreshChats() {
     try {
@@ -58,19 +67,29 @@ export default function AskAIPage() {
     if (apiKey) void refreshChats()
   }, [apiKey])
 
-  async function selectChat(id: string) {
-    try {
-      setLoaded(await getChat(id))
-      setActiveId(id)
-    } catch (error) {
-      console.error("Could not open chat", error)
+  useEffect(() => {
+    if (!apiKey || !activeId) return
+    let cancelled = false
+    getChat(activeId)
+      .catch((error: unknown) => {
+        console.error("Could not open chat", error)
+        return null
+      })
+      .then((chat) => {
+        if (!cancelled) setLoaded({ id: activeId, chat })
+      })
+    return () => {
+      cancelled = true
     }
+  }, [activeId, apiKey])
+
+  function selectChat(id: string) {
+    setSearchParams({ id })
     setHistoryOpen(false)
   }
 
   function startNewChat() {
-    setLoaded(null)
-    setActiveId(newChatId())
+    setSearchParams({ id: newChatId() })
     setHistoryOpen(false)
   }
 
@@ -118,7 +137,7 @@ export default function AskAIPage() {
               <div className="hidden w-64 shrink-0 overflow-hidden border-r md:flex">
                 <ChatHistory
                   chats={chats}
-                  activeId={activeId}
+                  activeId={activeId ?? ""}
                   onSelect={selectChat}
                   onNew={startNewChat}
                   onDelete={removeChat}
@@ -133,7 +152,7 @@ export default function AskAIPage() {
                   </SheetHeader>
                   <ChatHistory
                     chats={chats}
-                    activeId={activeId}
+                    activeId={activeId ?? ""}
                     onSelect={selectChat}
                     onNew={startNewChat}
                     onDelete={removeChat}
@@ -141,14 +160,16 @@ export default function AskAIPage() {
                 </SheetContent>
               </Sheet>
 
-              <ChatView
-                key={activeId}
-                chatId={activeId}
-                initial={loaded}
-                apiKey={apiKey}
-                onSaved={refreshChats}
-                onForgetKey={forgetKey}
-              />
+              {activeId && loaded?.id === activeId && (
+                <ChatView
+                  key={activeId}
+                  chatId={activeId}
+                  initial={loaded.chat}
+                  apiKey={apiKey}
+                  onSaved={refreshChats}
+                  onForgetKey={forgetKey}
+                />
+              )}
             </>
           ) : (
             <KeyGate onSave={setApiKey} />

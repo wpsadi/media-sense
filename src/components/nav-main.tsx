@@ -12,6 +12,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import { CheckIcon, CpuIcon, UploadIcon } from "lucide-react"
 import { ModelDownloadDialog, RadialProgress } from "@/components/model-download"
@@ -31,6 +32,7 @@ export function NavMain({
   const [uploadOpen, setUploadOpen] = useState(false)
   const model = useModelDownload()
   const { pathname } = useLocation()
+  const { setOpenMobile } = useSidebar()
 
   function handleModelClick() {
     if (model.status === "idle" || model.status === "error") model.start()
@@ -110,6 +112,8 @@ export function NavMain({
               <SidebarMenuButton
                 tooltip={item.title}
                 isActive={item.url !== "#" && pathname === item.url}
+                // On phones the sidebar is a sheet; picking an item should close it.
+                onClick={() => setOpenMobile(false)}
                 render={item.url === "#" ? undefined : <Link to={item.url} />}
               >
                 {item.icon}

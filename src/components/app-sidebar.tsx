@@ -154,7 +154,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               render={<a href="#" />}
             >
               <VideoIcon className="size-5!" />
-              <span className="text-base font-semibold">VideoSence</span>
+              <span className="text-base font-semibold">Media-Sence</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

@@ -20,11 +20,21 @@ export function SiteHeader({ title = "Ask AI", actions }: { title?: string; acti
 
         <div className="ml-auto flex items-center gap-1">
           {actions}
+          {/* Phones get only the icon; the command menu opens the same way from either. */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setOpen(true)}
+            aria-label="Search files and run commands"
+            className="md:hidden"
+          >
+            <SearchIcon />
+          </Button>
           <Button
             variant="outline"
             onClick={() => setOpen(true)}
             aria-label="Search files and run commands"
-            className="h-8 w-56 justify-start gap-2 bg-background/50 font-normal text-muted-foreground"
+            className="hidden h-8 w-56 justify-start gap-2 bg-background/50 font-normal text-muted-foreground md:flex"
           >
             <SearchIcon />
             <span className="flex-1 truncate text-left">Search files and commands...</span>
