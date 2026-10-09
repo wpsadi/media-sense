@@ -7,6 +7,8 @@ import { fileURLToPath, URL } from 'node:url'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // GitHub Pages serves project sites from /<repo>/; GITHUB_ACTIONS is set in CI only
+  base: process.env.GITHUB_ACTIONS ? '/media-sense/' : '/',
   plugins: [
     react(),
     babel({ presets: [reactCompilerPreset()] }),
