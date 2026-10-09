@@ -1,4 +1,5 @@
 import { useEffect } from "react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useEmbeddingModelStore } from "@/stores/embedding-model-store"
 import { useEmbeddingQueueStore } from "@/stores/embedding-queue-store"
 import { useGalleryStore } from "@/stores/gallery-store"
@@ -15,6 +16,7 @@ export function EmbeddingSync() {
   const enqueue = useEmbeddingQueueStore((s) => s.enqueue)
   const prune = useEmbeddingQueueStore((s) => s.prune)
   const loadIfCached = useEmbeddingModelStore((s) => s.loadIfCached)
+  const unsupported = useEmbeddingModelStore((s) => s.status === "unsupported")
 
   useEffect(() => {
     void hydrate()
@@ -34,5 +36,18 @@ export function EmbeddingSync() {
     if (hydrated && modelReady) enqueue(uploads)
   }, [hydrated, modelReady, uploads, enqueue])
 
-  return null
+  // Without WebGPU the app cannot work, so this stays open: no close button, and Escape or an outside click does nothing.
+  return (
+    <Dialog open={unsupported}>
+      <DialogContent showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>WebGPU is not available</DialogTitle>
+          <DialogDescription>
+            This browser has no WebGPU support, which the embedding model needs. Open the app in a browser with WebGPU
+            enabled, such as a recent version of Chrome or Edge on a device with a GPU.
+          </DialogDescription>
+        </DialogHeader>
+      </DialogContent>
+    </Dialog>
+  )
 }

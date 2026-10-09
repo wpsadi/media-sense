@@ -8,6 +8,16 @@ export type FileProgress = {
   total: number
 }
 
+// The embedding model only runs with WebGPU. A browser without a GPU adapter cannot use it.
+export async function hasWebGpu(): Promise<boolean> {
+  if (!navigator.gpu) return false
+  try {
+    return (await navigator.gpu.requestAdapter()) !== null
+  } catch {
+    return false
+  }
+}
+
 // Caching and retries live in the store (src/stores/embedding-model-store.ts).
 export async function createEmbeddingModel(
   onProgress?: (files: FileProgress[]) => void,

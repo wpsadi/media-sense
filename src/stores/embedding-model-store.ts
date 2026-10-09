@@ -1,8 +1,9 @@
 import { create } from "zustand"
-import { createEmbeddingModel, EMBEDDING_MODEL_ID, type FileProgress } from "@/lib/embedding-model"
+import { createEmbeddingModel, EMBEDDING_MODEL_ID, hasWebGpu, type FileProgress } from "@/lib/embedding-model"
 import { isModelCached } from "@/lib/model-cache"
 
-export type ModelStatus = "idle" | "downloading" | "ready" | "error"
+// "unsupported": this browser has no WebGPU, so the model never loads.
+export type ModelStatus = "idle" | "downloading" | "ready" | "error" | "unsupported"
 
 type LoadedEmbeddingModel = Awaited<ReturnType<typeof createEmbeddingModel>>
 
@@ -42,6 +43,10 @@ export const useEmbeddingModelStore = create<EmbeddingModelState>((set, get) => 
   forceWasm: false,
   loadIfCached: async () => {
     if (get().status !== "idle") return
+    if (!(await hasWebGpu())) {
+      set({ status: "unsupported" })
+      return
+    }
     if (await isModelCached(EMBEDDING_MODEL_ID)) get().start()
   },
   handleFailure: (err) => {
@@ -54,7 +59,7 @@ export const useEmbeddingModelStore = create<EmbeddingModelState>((set, get) => 
   start: () => {
     // Only one load runs at a time, and a loaded model is never reloaded.
     const { status, forceWasm } = get()
-    if (status === "downloading" || status === "ready") return
+    if (status === "downloading" || status === "ready" || status === "unsupported") return
 
     // Speed is measured from how many bytes arrived between progress events.
     let last: { bytes: number; time: number } | null = null
