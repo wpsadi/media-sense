@@ -5,7 +5,7 @@ import { currentDateLine } from "@/lib/format-time"
 
 // Web search runs in its own small model with Google Search grounding. The agents call it as a tool and get back an
 // answer with its sources, so grounding never mixes with their own tools.
-const WEB_SEARCH_MODEL_ID = "gemma-4-31b-it"
+const WEB_SEARCH_MODEL_ID = "gemma-4-26b-a4b-it"
 const WEB_SEARCH_PROMPT =
   "Search the web and answer the question below with current, factual information. Be concise: the key facts in plain sentences, under 200 words, with dates where they matter. If the results do not answer it, say so."
 
