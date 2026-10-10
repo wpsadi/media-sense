@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react"
-import { getAllEmbeddings } from "@/lib/embedding-db"
-import { rankByQuery, embedQuery, type SemanticMatch } from "@/lib/semantic-search"
+import { searchMedia, type SemanticMatch } from "@/lib/semantic-search"
 import { useEmbeddingModelStore } from "@/stores/embedding-model-store"
 
 const MIN_QUERY_LENGTH = 2
@@ -18,21 +17,16 @@ type MatchResult = {
 export function useSemanticMatches(query: string): MatchResult | null {
   const trimmed = query.trim()
   const modelStatus = useEmbeddingModelStore((s) => s.status)
-  const processor = useEmbeddingModelStore((s) => s.processor)
-  const model = useEmbeddingModelStore((s) => s.model)
   const [result, setResult] = useState<MatchResult | null>(null)
 
   useEffect(() => {
-    if (trimmed.length < MIN_QUERY_LENGTH || modelStatus !== "ready" || !processor || !model) return
+    if (trimmed.length < MIN_QUERY_LENGTH || modelStatus !== "ready") return
     let cancelled = false
     const timer = setTimeout(() => {
       void (async () => {
         try {
-          const [vector, records] = await Promise.all([
-            embedQuery(trimmed, { processor, model }),
-            getAllEmbeddings(),
-          ])
-          if (!cancelled) setResult({ query: trimmed, matches: rankByQuery(vector, records, LIMIT), error: null })
+          const matches = await searchMedia(trimmed, LIMIT)
+          if (!cancelled) setResult({ query: trimmed, matches, error: null })
         } catch (err) {
           // A GPU failure reloads the model on wasm; the effect runs again once it is ready.
           if (useEmbeddingModelStore.getState().handleFailure(err)) return
@@ -46,7 +40,7 @@ export function useSemanticMatches(query: string): MatchResult | null {
       cancelled = true
       clearTimeout(timer)
     }
-  }, [trimmed, modelStatus, processor, model])
+  }, [trimmed, modelStatus])
 
   return result?.query === trimmed ? result : null
 }

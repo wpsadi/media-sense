@@ -38,16 +38,15 @@ export const useEmbeddingQueueStore = create<EmbeddingQueueState>((set, get) => 
     running = true
     try {
       while (get().queue.length > 0) {
-        const model = useEmbeddingModelStore.getState()
         // Nothing runs until the model is loaded; enqueue starts it again once ready.
-        if (model.status !== "ready" || !model.model || !model.processor) break
+        if (useEmbeddingModelStore.getState().status !== "ready") break
 
         const [next, ...rest] = get().queue
         set({ queue: rest, current: next.id })
         try {
           const blob = await getUploadBlob(next.id)
           if (!blob) throw new Error("The file is no longer in the cache.")
-          const { vector, segments } = await embedMedia(next, blob, { processor: model.processor, model: model.model })
+          const { vector, segments } = await embedMedia(next, blob)
           const embeddedAt = Date.now()
           await putEmbedding({
             uploadId: next.id,

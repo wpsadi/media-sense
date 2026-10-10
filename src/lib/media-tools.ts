@@ -1,7 +1,6 @@
 import { generateText, jsonSchema, tool, type LanguageModel } from "ai"
 
-import { getAllEmbeddings } from "@/lib/embedding-db"
-import { embedQuery, rankByQuery } from "@/lib/semantic-search"
+import { searchMedia } from "@/lib/semantic-search"
 import { formatRange, formatTime } from "@/lib/format-time"
 import { modelPartsFor, type ModelPart } from "@/lib/media-frames"
 import { getUploadBlob, type UploadKind } from "@/lib/upload-cache"
@@ -50,8 +49,7 @@ export const searchMediaTool = tool({
     const text = query.trim()
     if (!text) return { error: "The query is empty." }
 
-    const { status, processor, model } = useEmbeddingModelStore.getState()
-    if (status !== "ready" || !processor || !model) {
+    if (useEmbeddingModelStore.getState().status !== "ready") {
       return { error: "The embedding model is not loaded. Ask the user to load it from the sidebar." }
     }
 
@@ -59,9 +57,9 @@ export const searchMediaTool = tool({
     if (!gallery.loaded) await gallery.refresh()
     const byId = new Map(useGalleryStore.getState().uploads.map((upload) => [upload.id, upload]))
 
-    const [vector, records] = await Promise.all([embedQuery(text, { processor, model }), getAllEmbeddings()])
+    const ranked = await searchMedia(text, TOP_K)
 
-    const results: MediaHit[] = rankByQuery(vector, records, TOP_K).flatMap(({ uploadId, score, moments }) => {
+    const results: MediaHit[] = ranked.flatMap(({ uploadId, score, moments }) => {
       const upload = byId.get(uploadId)
       if (!upload) return []
       const hit: MediaHit = { id: upload.id, name: upload.name, kind: upload.kind, score: round(score) }

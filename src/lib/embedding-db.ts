@@ -58,10 +58,21 @@ export function getAllEmbeddings(): Promise<EmbeddingRecord[]> {
   return run("readonly", (store) => store.getAll())
 }
 
-export function putEmbedding(record: EmbeddingRecord): Promise<IDBValidKey> {
-  return run("readwrite", (store) => store.put(record))
+// Counts committed writes. Anything derived from the saved vectors (the search index) is stale once this changes.
+let generation = 0
+
+export function embeddingsGeneration(): number {
+  return generation
 }
 
-export function deleteEmbedding(uploadId: string): Promise<undefined> {
-  return run("readwrite", (store) => store.delete(uploadId))
+export async function putEmbedding(record: EmbeddingRecord): Promise<IDBValidKey> {
+  const key = await run("readwrite", (store) => store.put(record))
+  generation++
+  return key
+}
+
+export async function deleteEmbedding(uploadId: string): Promise<undefined> {
+  const result = await run("readwrite", (store) => store.delete(uploadId))
+  generation++
+  return result
 }

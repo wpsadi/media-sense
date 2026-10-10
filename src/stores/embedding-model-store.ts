@@ -1,21 +1,19 @@
 import { create } from "zustand"
-import { createEmbeddingModel, EMBEDDING_MODEL_ID, hasWebGpu, type FileProgress } from "@/lib/embedding-model"
+import { EMBEDDING_MODEL_ID, hasWebGpu, type FileProgress } from "@/lib/embedding-model"
+import { loadEmbeddingModel } from "@/lib/embedding-client"
+import type { Device } from "@/lib/embedding-worker"
 import { isModelCached } from "@/lib/model-cache"
 
 // "unsupported": this browser has no WebGPU, so the model never loads.
 export type ModelStatus = "idle" | "downloading" | "ready" | "error" | "unsupported"
-
-type LoadedEmbeddingModel = Awaited<ReturnType<typeof createEmbeddingModel>>
 
 type EmbeddingModelState = {
   status: ModelStatus
   files: FileProgress[]
   bytesPerSecond: number
   error: string | null
-  processor: LoadedEmbeddingModel["processor"] | null
-  model: LoadedEmbeddingModel["model"] | null
-  // Which backend the loaded model runs on.
-  device: LoadedEmbeddingModel["device"] | null
+  // Which backend the loaded model runs on. The model itself lives in the embedding worker.
+  device: Device | null
   // Set after a WebGPU failure, so every later load uses wasm.
   forceWasm: boolean
   start: () => void
@@ -37,8 +35,6 @@ export const useEmbeddingModelStore = create<EmbeddingModelState>((set, get) => 
   files: [],
   bytesPerSecond: 0,
   error: null,
-  processor: null,
-  model: null,
   device: null,
   forceWasm: false,
   loadIfCached: async () => {
@@ -52,7 +48,7 @@ export const useEmbeddingModelStore = create<EmbeddingModelState>((set, get) => 
   handleFailure: (err) => {
     const message = err instanceof Error ? err.message : String(err)
     if (get().device !== "webgpu" || !GPU_FAILURE.test(message)) return false
-    set({ forceWasm: true, status: "idle", processor: null, model: null, device: null, error: null })
+    set({ forceWasm: true, status: "idle", device: null, error: null })
     get().start()
     return true
   },
@@ -84,8 +80,8 @@ export const useEmbeddingModelStore = create<EmbeddingModelState>((set, get) => 
     }
 
     set({ status: "downloading", files: [], bytesPerSecond: 0, error: null })
-    createEmbeddingModel(onProgress, { forceWasm }).then(
-      ({ processor, model, device }) => set({ status: "ready", bytesPerSecond: 0, processor, model, device }),
+    loadEmbeddingModel(forceWasm, onProgress).then(
+      (device) => set({ status: "ready", bytesPerSecond: 0, device }),
       (err: unknown) => {
         // "error" lets the next start() retry the load.
         set({ status: "error", bytesPerSecond: 0, error: err instanceof Error ? err.message : String(err) })
